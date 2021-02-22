@@ -2,14 +2,18 @@
 
 The functions in this module allow to solve the modified Cahn-Hilliard equation
 for the image-inpainting filter
+
+Author: Sergio P. Perez
 """
 
 import numpy as np
 from scipy import optimize
 
-#########################################
+#####################################################################################
+#
 # FUNCTION: temporal_loop
-#########################################
+#
+#####################################################################################
 
 def temporal_loop(initial_phi, damage):
     """Temporal discretization for the finite-volume scheme
@@ -22,7 +26,7 @@ def temporal_loop(initial_phi, damage):
     """
 
     conf=1 # Select the configuration of the problem
-    n, dx, x, epsilon_1, epsilon_2, lam, dt, tmax, ntimes 
+    n, dx, epsilon_1, epsilon_2, lam, dt, tmax, ntimes \
         = parameters(conf, damage) # Instantiate parameters
 
     t=np.zeros(ntimes+1) # Time vector
@@ -57,9 +61,11 @@ def temporal_loop(initial_phi, damage):
     return phi[:,ti+1] # Return restored image
 
 
-#########################################
-# FUNCTION: initial_conditions
-#########################################
+#####################################################################################
+#
+# FUNCTION: parameters
+#
+#####################################################################################
 
 def parameters(choice, damage):
     """Choice of parameters for the finite-volume scheme
@@ -68,13 +74,19 @@ def parameters(choice, damage):
         choice: selection of parameters
         damage: location of the damage in the image
     Returns: 
-        
+        n: number of cells per row
+        dx: mesh size
+        epsilon_1: parameter epsilon_1
+        epsilon_2: parameter epsilon 2
+        lam: parameter lambda
+        dt: time step
+        tmax: final time
+        ntimes: number of time steps       
     """
 
     if choice==1: #Random initial configuration
         n=28 # Number of cells per row
         dx=1 # Mesh size
-        x= np.linspace(-n*dx/2,n*dx/2,n) # Mesh
         epsilon_1 = 1.5 # Parameter epsilon_1
         epsilon_2 = 0.5 # Parameter epsilon_2
         lam=np.full((n*n), 9000) # Parameter lambda
@@ -84,11 +96,13 @@ def parameters(choice, damage):
         tmax=6 # Max time
         ntimes=int(tmax/dt)# Number of time steps
 
-    return num, n, dx, x, epsilon_1, epsilon_2, lam, dt, tmax, ntimes
+    return n, dx, epsilon_1, epsilon_2, lam, dt, tmax, ntimes
 
-#########################################
+#####################################################################################
+#
 # FUNCTION: spatial_discretization
-#########################################
+#
+#####################################################################################
 
 
 def spatial_discretization(phi_n, phi_nplus1, phi_0, n, dx, dt, epsilon, lam):
@@ -115,10 +129,10 @@ def spatial_discretization(phi_n, phi_nplus1, phi_0, n, dx, dt, epsilon, lam):
     
     # Define variation of the free energy: Hc1 - He1 + Lap
     
-    Hc1 = Hc1(phi_nplus1) # Convex part of the free energy (treated implicitly)
+    Hc1 = Hc1_function(phi_nplus1) # Convex part of the free energy (treated implicitly)
                          # Hc1 is the first derivative of Hc
 
-    He1 = He1(phi_n) # Concave part of the free energy (treated explicitly)
+    He1 = He1_function(phi_n) # Concave part of the free energy (treated explicitly)
                     # He1 is the first derivative of He
 
     Lap = np.zeros((n,n)) # Laplacian (treated semi-implicitly)
@@ -132,100 +146,131 @@ def spatial_discretization(phi_n, phi_nplus1, phi_0, n, dx, dt, epsilon, lam):
        phi_n[1:-1,1] - 3*phi_nplus1[1:-1,0] + phi_nplus1[0:-2,0] + phi_nplus1[2:,0]
        + phi_nplus1[1:-1,1])/dx**2/2. # Left-boundary cells
 
-    Lap[1:-1,-1]=epsilon**2*(-3*phi_n[1:-1,-1]+phi_n[0:-2,-1]+phi_n[2:,-1]+phi_n[1:-1,-2]\
-    -3*phi_nplus1[1:-1,-1]+phi_nplus1[0:-2,-1]+phi_nplus1[2:,-1]+phi_nplus1[1:-1,-2])/dx**2/2.#cells on the right line
+    Lap[1:-1,-1] = epsilon**2*(-3*phi_n[1:-1,-1] + phi_n[0:-2,-1] + phi_n[2:,-1] + 
+       phi_n[1:-1,-2] - 3*phi_nplus1[1:-1,-1] + phi_nplus1[0:-2,-1] + phi_nplus1[2:,-1]
+       + phi_nplus1[1:-1,-2])/dx**2/2. # Right-boundary cells
 
-    Lap[0,1:-1]=epsilon**2*(-3*phi_n[0,1:-1]+phi_n[0,0:-2]+phi_n[0,2:]+phi_n[1,1:-1]\
-    -3*phi_nplus1[0,1:-1]+phi_nplus1[0,0:-2]+phi_nplus1[0,2:]+phi_nplus1[1,1:-1])/dx**2/2.#cells on the top line
+    Lap[0,1:-1] = epsilon**2*(-3*phi_n[0,1:-1] + phi_n[0,0:-2] + phi_n[0,2:] + 
+       phi_n[1,1:-1] - 3*phi_nplus1[0,1:-1] + phi_nplus1[0,0:-2] + phi_nplus1[0,2:] +
+       phi_nplus1[1,1:-1])/dx**2/2. # Top-boundary cells
 
-    Lap[-1,1:-1]=epsilon**2*(-3*phi_n[-1,1:-1]+phi_n[-1,0:-2]+phi_n[-1,2:]+phi_n[-2,1:-1]\
-    -3*phi_nplus1[-1,1:-1]+phi_nplus1[-1,0:-2]+phi_nplus1[-1,2:]+phi_nplus1[-2,1:-1])/dx**2/2.#cells on the bottom line
+    Lap[-1,1:-1] = epsilon**2*(-3*phi_n[-1,1:-1] + phi_n[-1,0:-2] + phi_n[-1,2:] + 
+       phi_n[-2,1:-1] - 3*phi_nplus1[-1,1:-1] + phi_nplus1[-1,0:-2] + phi_nplus1[-1,2:]
+       + phi_nplus1[-2,1:-1])/dx**2/2. # Bottom-boundary cells
 
-    Lap[0,0]=epsilon**2*(-2*phi_n[0,0]+phi_n[1,0]+phi_n[0,1]\
-    -2*phi_nplus1[0,0]+phi_nplus1[1,0]+phi_nplus1[0,1])/dx**2/2.#cells on the top left corner
+    Lap[0,0] = epsilon**2*(-2*phi_n[0,0] + phi_n[1,0] + phi_n[0,1] - 2*phi_nplus1[0,0]
+        + phi_nplus1[1,0] + phi_nplus1[0,1])/dx**2/2. # Top-left cell
 
-    Lap[0,-1]=epsilon**2*(-2*phi_n[0,-1]+phi_n[1,-1]+phi_n[0,-2]\
-    -2*phi_nplus1[0,-1]+phi_nplus1[1,-1]+phi_nplus1[0,-2])/dx**2/2.#cells on the top right corner
+    Lap[0,-1] = epsilon**2*(-2*phi_n[0,-1] + phi_n[1,-1] + phi_n[0,-2] - 
+       2*phi_nplus1[0,-1] + phi_nplus1[1,-1] + phi_nplus1[0,-2])/dx**2/2.# Top-right cell
 
-    Lap[-1,0]=epsilon**2*(-2*phi_n[-1,0]+phi_n[-2,0]+phi_n[-1,1]\
-    -2*phi_nplus1[-1,0]+phi_nplus1[-2,0]+phi_nplus1[-1,1])/dx**2/2.#cells on the bottom left corner
+    Lap[-1,0] = epsilon**2*(-2*phi_n[-1,0] + phi_n[-2,0] + phi_n[-1,1] -
+       2*phi_nplus1[-1,0]+phi_nplus1[-2,0]+phi_nplus1[-1,1])/dx**2/2.# Bottom-left cell
 
-    Lap[-1,-1]=epsilon**2*(-2*phi_n[-1,-1]+phi_n[-2,-1]+phi_n[-1,-2]\
-    -2*phi_nplus1[-1,-1]+phi_nplus1[-2,-1]+phi_nplus1[-1,-2])/dx**2/2.#cells on the bottom right corner
+    Lap[-1,-1] = epsilon**2*(-2*phi_n[-1,-1] + phi_n[-2,-1] + phi_n[-1,-2] - 
+       2*phi_nplus1[-1,-1] + phi_nplus1[-2,-1] + phi_nplus1[-1,-2])/dx**2/2.# Bottom-right cell
 
-    # Compute (n-1) u velocities
+    # Compute velocities u (x axis) at the cell boundary
 
-    uhalf=-(Hc1[1:,:]-He1[1:,:]-Lap[1:,:]-Hc1[0:-1,:]+He1[0:-1,:]+Lap[0:-1,:])/dx
-
-    # Upwind u velocities
-
-    uhalfplus=np.zeros((n-1,n))
-    uhalfminus=np.zeros((n-1,n))
-    uhalfplus[uhalf > 0]=uhalf[uhalf > 0]
-    uhalfminus[uhalf < 0]=uhalf[uhalf < 0]
-
-    # Compute (n-1) v velocities
-
-    vhalf=-(Hc1[:,1:]-He1[:,1:]-Lap[:,1:]-Hc1[:,0:-1]+He1[:,0:-1]+Lap[:,0:-1])/dx
-
+    uhalf = -(Hc1[1:,:] - He1[1:,:] - Lap[1:,:]
+        - Hc1[0:-1,:] + He1[0:-1,:] + Lap[0:-1,:]) / dx
 
     # Upwind u velocities
 
+    uhalfplus = np.zeros((n-1,n))
+    uhalfminus = np.zeros((n-1,n))
+    uhalfplus[uhalf > 0] = uhalf[uhalf > 0]
+    uhalfminus[uhalf < 0] = uhalf[uhalf < 0]
 
-    vhalfplus=np.zeros((n,n-1))
-    vhalfminus=np.zeros((n,n-1))
-    vhalfplus[vhalf > 0]=vhalf[vhalf > 0]
-    vhalfminus[vhalf < 0]=vhalf[vhalf < 0]
+    # Compute velocities v (y axis) at the cell boundary
 
+    vhalf=-(Hc1[:,1:] - He1[:,1:] - Lap[:,1:] 
+        - Hc1[:,0:-1] + He1[:,0:-1] + Lap[:,0:-1]) / dx
+
+
+    # Upwind v velocities
+
+    vhalfplus = np.zeros((n,n-1))
+    vhalfminus = np.zeros((n,n-1))
+    vhalfplus[vhalf > 0] = vhalf[vhalf > 0]
+    vhalfminus[vhalf < 0] = vhalf[vhalf < 0]
 
     # Compute (n+1,n) x fluxes, including no-flux boundary conditions
 
-    Fxhalf=np.zeros((n+1,n))
-
-    # 1st order
-    Fxhalf[1:-1,:]=uhalfplus*mobility(phi_n[0:-1,:],choicemob)+uhalfminus*mobility(phi_n[1:,:],choicemob)
+    Fxhalf = np.zeros((n+1,n))
+    
+    Fxhalf[1:-1,:] = uhalfplus * mobility(phi_n[:-1,:]) \
+        + uhalfminus * mobility(phi_n[1:,:])
 
     # Compute (n+1) y fluxes, including no-flux boundary conditions
 
     Fyhalf=np.zeros((n,n+1))
 
-    # 1st order
-    Fyhalf[:,1:-1]=vhalfplus*mobility(phi_n[:,0:-1],choicemob)+vhalfminus*mobility(phi_n[:,1:],choicemob)
+    Fyhalf[:,1:-1] = vhalfplus * mobility(phi_n[:,0:-1]) \
+        + vhalfminus * mobility(phi_n[:,1:])
 
-
-    # initial state
+    # Reshape original image
 
     phi_0 = np.reshape(phi_0, (np.shape(phi_nplus1)))
 
+    # Compute residual of implicit finite-volume scheme
 
-    #b)define lambda
+    E_i = phi_nplus1 - phi_n+(Fxhalf[1:,:] - Fxhalf[:-1,:] + Fyhalf[:,1:]
+        - Fyhalf[:,:-1]) * dt / dx + lam * (phi_0 - phi_nplus1) * dt
 
-    E_i=phi_nplus1-phi_n+(Fxhalf[1:,:]-Fxhalf[:-1,:]+Fyhalf[:,1:]-Fyhalf[:,:-1])*dt/dx + lam*(phi_0-phi_nplus1)*dt
-
-    return np.reshape(E_i,n*n) #E_i.shape = (784,)
-
+    return np.reshape(E_i,n*n) # Return residual
 
 
-#################################################
-# DEFINE FUNCTION: H CONTRACTIVE DERIVATIVE
-##################################################
-def Hc1(phi):
+#####################################################################################
+#
+# FUNCTION: Hc1
+#
+#####################################################################################
+
+def Hc1_function(phi):
+    """First derivative of the contractive part of the potential H
+
+    Args:
+        phi: phase-field
+    Returns: 
+        Hc1: First derivative of the contractive part of the potential H
+    """
     Hc1=phi**3
+    
     return Hc1
 
 
+#####################################################################################
+#
+# FUNCTION: He1
+#
+#####################################################################################
 
-###############################################
-# DEFINE FUNCTION: H EXPANSIVE 2 DERIVATIVE
-###############################################
-def He1(phi):
-    He1=rho
+def He1_function(phi):
+    """First derivative of the expansive part of the potential H
+
+    Args:
+        phi: phase-field
+    Returns: 
+        He1: First derivative of the expansive part of the potential H
+    """    
+    He1=phi
+    
     return He1
 
-##############################
-# DEFINE FUNCTION: MOBILITY
-##################################
-def mobility(rho):
-    m=np.zeros(np.shape(rho))
+#####################################################################################
+#
+# FUNCTION: mobility
+#
+#####################################################################################
+def mobility(phi):
+    """Mobility function
+
+    Args:
+        phi: phase-field
+    Returns: 
+        m: mobility term in each cell
+    """
+    m=np.zeros(np.shape(phi))
     m[:]=1
     return m

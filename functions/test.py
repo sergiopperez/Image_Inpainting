@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Feb 21 11:36:54 2021
-
-@author: sergioperez
+FINITE-VOLUMES FULL 2D
 """
 
 import matplotlib.pyplot as plt
@@ -35,7 +33,43 @@ restored_example = fv.temporal_loop(example, damage)
 plots.plot_image(restored_example)
 
 # %%
+"""
+FINITE-VOLUMES SPLITTING
+"""
 
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
+
+import plots
+import finite_volumes_par as fvp
+
+
+
+import mnist
+test_images = mnist.test_images()
+test_images = test_images.reshape((-1,784))
+test_images = (test_images / 255) *2-1
+example = test_images[0,:]
+
+#plots.plot_image(example)
+
+
+intensity = 0.3
+
+damage = np.random.choice(np.arange(example.size), replace=False, size=int(example.size * intensity))
+example[damage] = 0
+#plots.plot_image(example)
+
+restored_example = fvp.temporal_loop_par(example, damage)
+
+plots.plot_image(restored_example)
+
+
+# %%
+"""
+TRAIN NN
+"""
 import mnist
 import neural_network as nn
 
@@ -51,6 +85,9 @@ train_images = train_images.reshape((-1,784))
 model, history = nn.training(train_images, train_labels)
 
 # %%
+"""
+VALIDATE NN
+"""
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -81,7 +118,9 @@ test_loss, test_accuracy = model.evaluate(test_images, to_categorical(test_label
 
 
 # %%
-
+"""
+FINITE-VOLUMES FULL 2D FOR A GROUP OF IMAGES
+"""
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -120,10 +159,25 @@ for i in range(n_images):
     
 
 # %%
-  
+
+"""
+PREDICTION OF A GROUP OF IMAGES
+"""
+
 predictions_damaged = np.argmax(model.predict(example), axis=1)  
 predictions_restored = np.argmax(model.predict(restored_example), axis=1)    
     
 print(predictions_damaged)
 print(predictions_restored)
+
+#to_categorical(test_labels[indices_images], num_classes=10)
+model.evaluate(
+ example,
+ to_categorical(test_labels[indices_images], num_classes=10)
+)
+
+model.evaluate(
+ restored_example,
+ to_categorical(test_labels[indices_images], num_classes=10)
+)
     
