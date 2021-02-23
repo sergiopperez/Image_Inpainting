@@ -8,7 +8,6 @@ Author: Sergio P. Perez
 
 import numpy as np
 from scipy import optimize
-import multiprocessing as mp
 
 #####################################################################################
 #
@@ -16,8 +15,7 @@ import multiprocessing as mp
 #
 #####################################################################################
 
-
-def temporal_loop_par(initial_phi, damage, num_proc):
+def temporal_loop_split(initial_phi, damage):
     """Temporal discretization for the finite-volume scheme
 
     Args:
@@ -37,42 +35,26 @@ def temporal_loop_par(initial_phi, damage, num_proc):
     phi_0 = np.reshape(phi[:,0], (n,n)) # Reshape initial phase-field
     
     epsilon = epsilon_1 # First step: large epsilon for topological reconnection
-    
-    
+
     for ti in np.arange(ntimes): # Temporal loop
         
-        # Parallel dimensional-splitting: solve nonadjacent rows and then 
-        # nonadjacent columns
+        # Dimensional-splitting: solve row by row and then column by column
         
         phi_r = np.reshape(phi[:,ti],(n,n)).copy() # Define matrix with rows
         
-        pool = mp.Pool(num_proc) # Set number of processors
-        
-        for row in range(0, n, 2): # First loop of nonadjacent rows
+        for j in range(n): # Loop row by row
             
-            phi_r[row,:] = pool.apply(fsolve_par_row, args=(phi_r, phi_0[row,:], n, 
-                                                 dx, dt, epsilon, lam[row,:], row))
+            phi_r[j,:]=optimize.fsolve(lambda phi_rplus1: spatial_discretization_row(
+                    phi_r, phi_rplus1, phi_0[j,:], n, dx, dt, epsilon, lam[j,:], j
+                    ), phi_r[j,:])
             
-        for row in range(1, n, 2): # Second loop of nonadjacent rows
-            
-            phi_r[row,:] = pool.apply(fsolve_par_row, args=(phi_r, phi_0[row,:], n, 
-                                                 dx, dt, epsilon, lam[row,:], row))
-                     
         phi_c = phi_r # Move from rows to columns
-             
-        for col in range(0, n, 2): # First loop of nonadjacent columns
+        
+        for j in range(n): # Loop column by column 
             
-            phi_c[:,col] = pool.apply(fsolve_par_col, args=(phi_c, phi_0[:,col], n, 
-                                                 dx, dt, epsilon, lam[:,col], col))
-            
-        for col in range(1, n, 2): # Second loop of nonadjacent columns
-            
-            phi_c[:,col] = pool.apply(fsolve_par_col, args=(phi_c, phi_0[:,col], n, 
-                                                 dx, dt, epsilon, lam[:,col], col))
-                       
-        pool.close() # Close processors
-         
-        pool.join()  # Wait until they have all finished 
+            phi_c[:,j] = optimize.fsolve(lambda phi_cplus1: spatial_discretization_column(
+                    phi_c, phi_cplus1, phi_0[:,j], n, dx, dt, epsilon, lam[:,j], j
+                    ), phi_c[:,j])
             
         phi[:,ti+1] = np.reshape(phi_c,n*n).copy() # Update phase-field array
         
@@ -94,63 +76,6 @@ def temporal_loop_par(initial_phi, damage, num_proc):
 
     return phi[:,ti+1] # Return restored image
 
-#####################################################################################
-#
-# FUNCTION: fsolve_par_row
-#
-#####################################################################################
-
-def fsolve_par_row(phi_r, phi_0, n, dx, dt, epsilon, lam, j):
-    """Fsolve function for the row iteration
-
-    Args:
-        phi_r: phase-field at row r
-        phi_0: original row of damaged image
-        n: number of cells per row
-        dx: mesh size
-        dt: time step
-        epsilon: parameter epsilon
-        lam: parameter lambda 
-        j: row number
-        
-    Returns: 
-        phi_rplus1: updated phase-field at row r
-    """
-    
-    phi_rplus1 = optimize.fsolve(lambda phi_rplus1: spatial_discretization_row(
-                phi_r, phi_rplus1, phi_0, n, dx, dt, epsilon, lam, j
-                ), phi_r[j,:])
-    
-    return phi_rplus1
-
-#####################################################################################
-#
-# FUNCTION: fsolve_par_col
-#
-#####################################################################################
-
-def fsolve_par_col(phi_c, phi_0, n, dx, dt, epsilon, lam, j):
-    """Fsolve function for the column iteration
-
-    Args:
-        phi_c: phase-field at column r
-        phi_0: original row of damaged image
-        n: number of cells per row
-        dx: mesh size
-        dt: time step
-        epsilon: parameter epsilon
-        lam: parameter lambda 
-        j: row number
-        
-    Returns: 
-        phi_cplus1: updated phase-field at column r
-    """
-    
-    phi_cplus1 = optimize.fsolve(lambda phi_cplus1: spatial_discretization_column(
-                phi_c, phi_cplus1, phi_0, n, dx, dt, epsilon, lam, j
-                ), phi_c[:,j])
-    
-    return phi_cplus1
 
 #####################################################################################
 #

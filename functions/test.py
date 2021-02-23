@@ -27,8 +27,10 @@ intensity = 0.3
 damage = np.random.choice(np.arange(example.size), replace=False, size=int(example.size * intensity))
 example[damage] = 0
 #plots.plot_image(example)
-
+import time
+start = time.time()
 restored_example = fv.temporal_loop(example, damage)
+print("Total time: {:.2f}".format(time.time()-start))
 
 plots.plot_image(restored_example)
 
@@ -42,7 +44,7 @@ import numpy as np
 import tensorflow as tf
 
 import plots
-import finite_volumes_par as fvp
+import finite_volumes_split as fvs
 
 
 
@@ -61,7 +63,51 @@ damage = np.random.choice(np.arange(example.size), replace=False, size=int(examp
 example[damage] = 0
 #plots.plot_image(example)
 
-restored_example = fvp.temporal_loop_par(example, damage)
+import time
+start = time.time()
+restored_example = fvs.temporal_loop_split(example, damage)
+print("Total time: {:.2f}".format(time.time()-start))
+
+
+plots.plot_image(restored_example)
+
+# %%
+"""
+FINITE-VOLUMES PARALLELIZATION
+"""
+
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
+
+import plots
+import finite_volumes_par as fvp
+
+import multiprocessing as mp
+print("Number of processors: ", mp.cpu_count())
+num_proc = mp.cpu_count()
+
+
+import mnist
+test_images = mnist.test_images()
+test_images = test_images.reshape((-1,784))
+test_images = (test_images / 255) *2-1
+example = test_images[0,:]
+
+#plots.plot_image(example)
+
+
+intensity = 0.3
+
+damage = np.random.choice(np.arange(example.size), replace=False, size=int(example.size * intensity))
+example[damage] = 0
+#plots.plot_image(example)
+
+import time
+start = time.time()
+restored_example = fvp.temporal_loop_par(example, damage, num_proc)
+print("Total time: {:.2f}".format(time.time()-start))
+
 
 plots.plot_image(restored_example)
 

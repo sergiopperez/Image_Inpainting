@@ -35,7 +35,7 @@ def temporal_loop(initial_phi, damage):
 
     epsilon = epsilon_1 # First step: large epsilon for topological reconnection
 
-    for ti in np.arange(ntimes):
+    for ti in np.arange(ntimes): # Temporal loop
 
         # Implicit Euler: solve nonlinear system of equations
 
@@ -47,7 +47,8 @@ def temporal_loop(initial_phi, damage):
 
         print('--------------------')
         print('Time: ',t[ti])
-        print(['L1 norm of the difference between the new and old state: ',np.linalg.norm(phi[:,ti+1]-phi[:,ti],1)])
+        print(['L1 norm of the difference between the new and old state: ',
+               np.linalg.norm(phi[:,ti+1]-phi[:,ti],1)])
 
         if np.linalg.norm(phi[:,ti+1]-phi[:,ti],1) <  0.0001 :
             break # Break if change is small
