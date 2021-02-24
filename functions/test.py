@@ -139,17 +139,8 @@ import pandas as pd
 import numpy as np
 from tensorflow.keras.utils import to_categorical
 
-#Loss plot
 
-acc_plot = history.plot(y="loss", title = "Loss vs. Epochs",legend=False)
-acc_plot.set(xlabel="Epochs", ylabel="Loss")
-
-#Accuracy plot
-
-acc_plot = history.plot(y="accuracy", title="Accuracy vs. Epochs", legend=False)
-acc_plot.set(xlabel="Epochs", ylabel="Accuracy")
-
-
+plots.loss_acc_plots(history)
 
 test_images = mnist.test_images()
 test_labels = mnist.test_labels()
@@ -226,4 +217,6 @@ model.evaluate(
  restored_example,
  to_categorical(test_labels[indices_images], num_classes=10)
 )
-    
+# %%
+import plots
+plots.plot_3images(test_images[0,:], test_images[1,:], test_images[1,:])
