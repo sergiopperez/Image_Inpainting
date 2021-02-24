@@ -218,5 +218,36 @@ model.evaluate(
  to_categorical(test_labels[indices_images], num_classes=10)
 )
 # %%
-import plots
-plots.plot_3images(test_images[0,:], test_images[1,:], test_images[1,:])
+"""
+CUSTOMIZED TRAINING LOOP
+"""
+
+import mnist
+import neural_network as nn
+
+train_images = mnist.train_images()
+train_labels = mnist.train_labels()
+
+# Normalize the test image as CH Equation work for (-1,1)
+train_images = (train_images / 255) *2-1
+
+# Flatten the test images
+train_images = train_images.reshape((-1,784))
+
+model = nn.customized_training(train_images, train_labels)
+
+# %%
+"""
+VALIDATION OF TRAINING LOOP
+"""
+
+test_images = mnist.test_images()
+test_labels = mnist.test_labels()
+
+# Normalize the test image as CH Equation work for (-1,1)
+test_images = (test_images / 255) *2-1
+
+# Flatten the test images
+test_images = test_images.reshape((-1,784))
+
+nn.customized_validation(test_images, test_labels, model)
