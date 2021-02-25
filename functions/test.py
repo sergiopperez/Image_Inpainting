@@ -238,7 +238,7 @@ model = nn.customized_training(train_images, train_labels)
 
 # %%
 """
-VALIDATION OF TRAINING LOOP
+VALIDATION OF CUSTOMIZED TRAINING LOOP
 """
 
 test_images = mnist.test_images()
