@@ -11,7 +11,7 @@ The three take-home messages from this notebook are that:
 <p>&nbsp;</p>
 
 #### Damaged image:
-<img src="images/damage_23.png" style="width:3cm;height:25px;" >
+<img src="images/damage_23.png" alt="drawing" width="20">
 
 #### Restored image:
 <img src="images/inpainting_23.png" style="width:30px;height:25px;" >
